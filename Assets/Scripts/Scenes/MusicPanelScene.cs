@@ -5,17 +5,33 @@ using Cysharp.Threading.Tasks;
 using UnityEngine.Networking;
 using System;
 using System.IO;
+using UnityEngine.UI;
 
 public class MusicPanelScene : MonoBehaviour
 {
     [SerializeField]
-    private AudioSource audioSource;
+    private AudioSource audioSource = null;
+    [SerializeField]
+    private Button debugLogViewButton = null;
+    [SerializeField]
+    private GameObject debugLogViewObject = null;
+
 
     private string path = "/storage/emulated/0/Music/sample.mp3";
 
-    private void Start()
+    private bool isViewDebugLog = false;
+    private void Awake()
     {
         LoadAudio(path);
+
+        debugLogViewObject.SetActive(isViewDebugLog);
+        debugLogViewButton.OnClickAsObservable()
+            .Subscribe(_ =>
+            {
+                isViewDebugLog = !isViewDebugLog;
+                debugLogViewObject.SetActive(isViewDebugLog);
+            })
+            .AddTo(this);
     }
 
     public void LoadAudio(string path)
@@ -29,34 +45,45 @@ public class MusicPanelScene : MonoBehaviour
         StartCoroutine(LoadToAudioClipAndPlay(path));
     }
 
-    private IEnumerator LoadToAudioClipAndPlay(string path)
+    private async UniTask<string> UniTaskTest(string uri)
     {
-        if (audioSource == null || string.IsNullOrEmpty(path))
-            yield break;
+        var uwr = UnityWebRequest.Get(uri);
+        await uwr.SendWebRequest();
 
-        if (!File.Exists(path))
+        if (uwr.result == UnityWebRequest.Result.ProtocolError || uwr.result == UnityWebRequest.Result.ConnectionError)
         {
-            Debug.Log("File not found.");
-            yield break;
+            throw new Exception(uwr.error);
         }
 
-        using (WWW www = new WWW("file://" + path))
+        return uwr.downloadHandler.text;
+    }
+
+    private IEnumerator LoadToAudioClipAndPlay(string uri)
+    {
+        string[] files = Directory.GetFiles(uri);
+        foreach (string path in files)
         {
-            while (!www.isDone)
+            if (Path.GetExtension(path) != ".wav")
             {
-                yield return null;
+                continue;
             }
 
-            AudioClip audioClip = www.GetAudioClip(false, true);
-            if (audioClip.loadState != AudioDataLoadState.Loaded)
+            var www = UnityWebRequestMultimedia.GetAudioClip("file://" + path, AudioType.WAV);
             {
-                Debug.Log("Failed to load AudioClip.");
-                yield break;
-            }
+                yield return www.Send();
 
-            audioSource.clip = audioClip;
-            audioSource.Play();
-            Debug.Log("Load success : " + path);
+                if (www.result == UnityWebRequest.Result.ConnectionError)
+                {
+                    Debug.Log(www.error);
+                }
+                else
+                {
+                    var downloadClip = DownloadHandlerAudioClip.GetContent(www);
+                    audioSource.clip = downloadClip;
+                    audioSource.Play();
+                    Debug.Log("Load success : " + www);
+                }
+            }
         }
     }
 
