@@ -228,9 +228,13 @@ public class MusicPanelScene : MonoBehaviour
 
     private void ReceiveAddResult(string result)
     {
+        Debug.Log(String.Format("ReceiveAddResult:{0}", result));
+
         if (result[0] == '{')
         {
             var info = JsonUtility.FromJson<AudioInfo>(result);
+            Debug.Log(String.Format("ReceiveAddResult path:{0}", info.path));
+
             if (!string.IsNullOrEmpty(info.path))
             {
                 AddSong(info);
