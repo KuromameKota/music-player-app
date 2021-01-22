@@ -190,17 +190,25 @@ public class MusicPanelScene : MonoBehaviour
 
     private IEnumerator LoadToAudioClipAndPlay(string uri)
     {
+        Debug.Log(String.Format("LoadToAudioClipAndPlay uri:{0}", uri));
+
         string[] files = Directory.GetFiles(uri);
         foreach (string path in files)
         {
-            if (Path.GetExtension(path) != ".wav")
+            Debug.Log(String.Format("LoadToAudioClipAndPlay path:{0}", path));
+
+            var neko = Path.GetExtension(path);
+            Debug.Log(String.Format("LoadToAudioClipAndPlay neko:{0}", neko));
+
+            if (!availableExtType.Contains(neko))
             {
+                Debug.LogError("extension is not available.");
                 continue;
             }
 
-            var www = UnityWebRequestMultimedia.GetAudioClip("file://" + path, AudioType.WAV);
+            var www = UnityWebRequestMultimedia.GetAudioClip(path, AudioType.MPEG);
             {
-                yield return www.Send();
+                yield return www.SendWebRequest();
 
                 if (www.result == UnityWebRequest.Result.ConnectionError)
                 {
@@ -233,11 +241,14 @@ public class MusicPanelScene : MonoBehaviour
         if (result[0] == '{')
         {
             var info = JsonUtility.FromJson<AudioInfo>(result);
-            Debug.Log(String.Format("ReceiveAddResult path:{0}", info.path));
+            
+            Debug.Log(String.Format("ReceiveAddResult uri:{0}", info.uri));
 
-            if (!string.IsNullOrEmpty(info.path))
+            if (!string.IsNullOrEmpty(info.uri))
             {
-                AddSong(info);
+                //AddSong(info);
+                Debug.Log(String.Format("ReceiveAddResult LoadToAudioClipAndPlay"));
+                StartCoroutine(LoadToAudioClipAndPlay(info.uri));
             }
             else
             {
