@@ -8,6 +8,10 @@ using System.IO;
 using UnityEngine.UI;
 using System.Collections.Generic;
 using FantomLib;
+#if UNITY_ANDROID
+using UnityEngine.Android;
+#endif
+
 
 public class MusicPanelScene : MonoBehaviour
 {
@@ -25,7 +29,7 @@ public class MusicPanelScene : MonoBehaviour
     public class PlayItem
     {
         public AudioClip clip;
-        public string path;         //also key ("#~" = preset song, "/storage/~" = added song)
+        public string path;
         public string title;
         public string artist;
 
@@ -87,6 +91,12 @@ public class MusicPanelScene : MonoBehaviour
 
     private void Awake()
     {
+#if UNITY_ANDROID
+        if (!Permission.HasUserAuthorizedPermission(Permission.ExternalStorageWrite))
+        {
+            Permission.RequestUserPermission(Permission.ExternalStorageWrite);
+        }
+#endif
         debugLogViewObject.SetActive(isViewDebugLog);
         debugLogViewButton.OnClickAsObservable()
             .Subscribe(_ =>
@@ -188,43 +198,6 @@ public class MusicPanelScene : MonoBehaviour
         return uwr.downloadHandler.text;
     }
 
-    private IEnumerator LoadToAudioClipAndPlay(string uri)
-    {
-        Debug.Log(String.Format("LoadToAudioClipAndPlay uri:{0}", uri));
-
-        string[] files = Directory.GetFiles(uri);
-        foreach (string path in files)
-        {
-            Debug.Log(String.Format("LoadToAudioClipAndPlay path:{0}", path));
-
-            var neko = Path.GetExtension(path);
-            Debug.Log(String.Format("LoadToAudioClipAndPlay neko:{0}", neko));
-
-            if (!availableExtType.Contains(neko))
-            {
-                Debug.LogError("extension is not available.");
-                continue;
-            }
-
-            var www = UnityWebRequestMultimedia.GetAudioClip(path, AudioType.MPEG);
-            {
-                yield return www.SendWebRequest();
-
-                if (www.result == UnityWebRequest.Result.ConnectionError)
-                {
-                    Debug.Log(www.error);
-                }
-                else
-                {
-                    var downloadClip = DownloadHandlerAudioClip.GetContent(www);
-                    audioSource.clip = downloadClip;
-                    audioSource.Play();
-                    Debug.Log("Load success : " + www);
-                }
-            }
-        }
-    }
-
     private void OpenStorageToAdd()
     {
 #if UNITY_EDITOR
@@ -242,13 +215,21 @@ public class MusicPanelScene : MonoBehaviour
         {
             var info = JsonUtility.FromJson<AudioInfo>(result);
             
+            Debug.Log(String.Format("ReceiveAddResult path:{0}", info.path));
             Debug.Log(String.Format("ReceiveAddResult uri:{0}", info.uri));
+            Debug.Log(String.Format("ReceiveAddResult fileUri:{0}", info.fileUri));
+            Debug.Log(String.Format("ReceiveAddResult mimeType:{0}", info.mimeType));
+            Debug.Log(String.Format("ReceiveAddResult title:{0}", info.title));
+            Debug.Log(String.Format("ReceiveAddResult artist:{0}", info.artist));
+            Debug.Log(String.Format("ReceiveAddResult name:{0}", info.name));
+            Debug.Log(String.Format("ReceiveAddResult size:{0}", info.size));
+            Debug.Log(String.Format("ReceiveAddResult duration:{0}", info.duration));
 
-            if (!string.IsNullOrEmpty(info.uri))
+            if (!string.IsNullOrEmpty(info.path))
             {
-                //AddSong(info);
-                Debug.Log(String.Format("ReceiveAddResult LoadToAudioClipAndPlay"));
-                StartCoroutine(LoadToAudioClipAndPlay(info.uri));
+                AddSong(info);
+                //StartCoroutine(LoadToAudioClip(info.path));
+                //StartCoroutine(LoadToAudioClipAndPlay(info.path));
             }
             else
             {
@@ -273,6 +254,7 @@ public class MusicPanelScene : MonoBehaviour
             Debug.LogError("path is not empty.");
             return;
         }
+
         string ext = Path.GetExtension(info.path).ToLower();
         if (!availableExtType.Contains(ext))
         {
@@ -284,6 +266,4 @@ public class MusicPanelScene : MonoBehaviour
         playlist.Add(data); 
         StartCoroutine(LoadAudio(info.path, playlist.Count - 1, LoadAudioComplete));
     }
-
-
 }
