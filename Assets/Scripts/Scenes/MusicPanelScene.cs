@@ -7,7 +7,7 @@ using System;
 using System.IO;
 using UnityEngine.UI;
 using System.Collections.Generic;
-using FantomLib;
+using System.Linq;
 #if UNITY_ANDROID
 using UnityEngine.Android;
 #endif
@@ -93,23 +93,23 @@ public class MusicPanelScene : MonoBehaviour
     private LoadedState loadedState = LoadedState.None;
     private bool isViewDebugLog = true;
 
-    private string[] MimeTypes
-    {
-        get
-        {
-            if (mimeTypes == null || mimeTypes.Length == 0)
-                mimeTypes = new string[] { AndroidMimeType.Audio.All };
+    //private string[] MimeTypes
+    //{
+    //    get
+    //    {
+    //        if (mimeTypes == null || mimeTypes.Length == 0)
+    //            mimeTypes = new string[] { AndroidMimeType.Audio.All };
 
-            return mimeTypes;
-        }
-        set
-        {
-            if (value != null && value.Length > 0)
-                mimeTypes = value;
-            else
-                mimeTypes = new string[] { AndroidMimeType.Audio.All };
-        }
-    }
+    //        return mimeTypes;
+    //    }
+    //    set
+    //    {
+    //        if (value != null && value.Length > 0)
+    //            mimeTypes = value;
+    //        else
+    //            mimeTypes = new string[] { AndroidMimeType.Audio.All };
+    //    }
+    //}
 
     private void Awake()
     {
@@ -136,12 +136,17 @@ public class MusicPanelScene : MonoBehaviour
         viewPlayListButton.OnClickAsObservable()
             .Subscribe(_ =>
             {
+                AndroidPlugin.Instance.GetMusinItemList();
             })
             .AddTo(this);
 
         prevButton.OnClickAsObservable()
             .Subscribe(_ =>
             {
+                var neko = AndroidPlugin.Instance.GetTestText();
+                Debug.Log(neko);
+
+                AndroidPlugin.Instance.ShowToast("Neko Neko Daisuki");
             })
             .AddTo(this);
 
@@ -175,43 +180,43 @@ public class MusicPanelScene : MonoBehaviour
 
     private void OpenStorageToAdd()
     {
-#if UNITY_EDITOR
-        Debug.Log("OpenStorageToAdd called.");
-#elif UNITY_ANDROID
-            AndroidPlugin.OpenStorageAudio(MimeTypes, gameObject.name, "ReceiveAddResult", "ReceiveAddError");
-#endif
+//#if UNITY_EDITOR
+//        Debug.Log("OpenStorageToAdd called.");
+//#elif UNITY_ANDROID
+//            AndroidPlugin.OpenStorageAudio(MimeTypes, gameObject.name, "ReceiveAddResult", "ReceiveAddError");
+//#endif
     }
 
     private void ReceiveAddResult(string result)
     {
-        if (result[0] == '{')
-        {
-            var info = JsonUtility.FromJson<AudioInfo>(result);
+        //if (result[0] == '{')
+        //{
+        //    var info = JsonUtility.FromJson<AudioInfo>(result);
 
-            Debug.Log(String.Format("ReceiveAddResult path:{0}", info.path));
-            Debug.Log(String.Format("ReceiveAddResult uri:{0}", info.uri));
-            Debug.Log(String.Format("ReceiveAddResult fileUri:{0}", info.fileUri));
-            Debug.Log(String.Format("ReceiveAddResult mimeType:{0}", info.mimeType));
-            Debug.Log(String.Format("ReceiveAddResult title:{0}", info.title));
-            Debug.Log(String.Format("ReceiveAddResult artist:{0}", info.artist));
-            Debug.Log(String.Format("ReceiveAddResult name:{0}", info.name));
-            Debug.Log(String.Format("ReceiveAddResult size:{0}", info.size));
-            Debug.Log(String.Format("ReceiveAddResult duration:{0}", info.duration));
+        //    Debug.Log(String.Format("ReceiveAddResult path:{0}", info.path));
+        //    Debug.Log(String.Format("ReceiveAddResult uri:{0}", info.uri));
+        //    Debug.Log(String.Format("ReceiveAddResult fileUri:{0}", info.fileUri));
+        //    Debug.Log(String.Format("ReceiveAddResult mimeType:{0}", info.mimeType));
+        //    Debug.Log(String.Format("ReceiveAddResult title:{0}", info.title));
+        //    Debug.Log(String.Format("ReceiveAddResult artist:{0}", info.artist));
+        //    Debug.Log(String.Format("ReceiveAddResult name:{0}", info.name));
+        //    Debug.Log(String.Format("ReceiveAddResult size:{0}", info.size));
+        //    Debug.Log(String.Format("ReceiveAddResult duration:{0}", info.duration));
 
-            if (!string.IsNullOrEmpty(info.path))
-            {
-                AddSong(info);
-                //StartCoroutine(LoadToAudioClip(info.path));
-            }
-            else
-            {
-                ReceiveAddError("Failed to get path.");
-            }
-        }
-        else
-        {
-            ReceiveAddError(result);
-        }
+        //    if (!string.IsNullOrEmpty(info.path))
+        //    {
+        //        AddSong(info);
+        //        //StartCoroutine(LoadToAudioClip(info.path));
+        //    }
+        //    else
+        //    {
+        //        ReceiveAddError("Failed to get path.");
+        //    }
+        //}
+        //else
+        //{
+        //    ReceiveAddError(result);
+        //}
     }
 
     private void ReceiveAddError(string message)
@@ -219,25 +224,25 @@ public class MusicPanelScene : MonoBehaviour
         Debug.LogError(message);
     }
 
-    public void AddSong(AudioInfo info)
-    {
-        if (string.IsNullOrEmpty(info.path))
-        {
-            Debug.LogError("path is not empty.");
-            return;
-        }
+    //public void AddSong(AudioInfo info)
+    //{
+    //    if (string.IsNullOrEmpty(info.path))
+    //    {
+    //        Debug.LogError("path is not empty.");
+    //        return;
+    //    }
 
-        string ext = Path.GetExtension(info.path).ToLower();
-        if (!availableExtType.Contains(ext))
-        {
-            Debug.LogError("extension is not available.");
-            return;
-        }
+    //    string ext = Path.GetExtension(info.path).ToLower();
+    //    if (!availableExtType.Contains(ext))
+    //    {
+    //        Debug.LogError("extension is not available.");
+    //        return;
+    //    }
 
-        PlayItem data = new PlayItem(info.path, string.IsNullOrEmpty(info.title) ? info.name : info.title, info.artist);
-        playList.Add(data);
-        StartCoroutine(LoadAudio(info.path, playList.Count - 1, LoadAudioComplete));
-    }
+    //    PlayItem data = new PlayItem(info.path, string.IsNullOrEmpty(info.title) ? info.name : info.title, info.artist);
+    //    playList.Add(data);
+    //    StartCoroutine(LoadAudio(info.path, playList.Count - 1, LoadAudioComplete));
+    //}
 
     private IEnumerator LoadAudio(string path, int idx, Action<int, int> completeCallback, int dir = 0)
     {
