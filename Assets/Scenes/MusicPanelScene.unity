@@ -578,15 +578,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 29251c671091da44cb2fc40a0e335d86, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  audioSource: {fileID: 1770003353}
-  openStorageButton: {fileID: 685871653}
-  debugLogViewButton: {fileID: 1933954150}
-  debugLogViewObject: {fileID: 5058734761948656375}
   mimeTypes:
   - audio/mpeg
   - audio/ogg
   - application/ogg
   - audio/x-wav
+  audioSource: {fileID: 1770003353}
+  musicImage: {fileID: 0}
+  musicTitleText: {fileID: 0}
+  musicArtistText: {fileID: 0}
+  viewPlayListButton: {fileID: 685871653}
+  prevButton: {fileID: 0}
+  stopButton: {fileID: 0}
+  playButton: {fileID: 0}
+  nextButton: {fileID: 0}
+  addMusicButton: {fileID: 0}
+  debugLogViewButton: {fileID: 1933954150}
+  debugLogViewObject: {fileID: 5058734761948656375}
 --- !u!1 &1678219136
 GameObject:
   m_ObjectHideFlags: 0
