@@ -36,9 +36,13 @@ namespace MusicPlayer.Scenes.Play
         [SerializeField]
         private Button playButton = default;
         [SerializeField]
+        private Text playButtonText = default;
+        [SerializeField]
         private Button nextButton = default;
         [SerializeField]
         private Button addMusicButton = default;
+        [SerializeField]
+        private Image nowloadingImage = default;
 
         [Header("DebugObject")]
         [SerializeField]
@@ -49,6 +53,26 @@ namespace MusicPlayer.Scenes.Play
         private List<PlayItem> playList = new List<PlayItem>();
         private int playListIndex = 0;
         private List<MusicItem> musicItems = new List<MusicItem>();
+        private bool isFirstPlay = true;
+        
+        private Dictionary<string, AudioType> audioTypeDictionary = new Dictionary<string, AudioType>()
+        {
+            {".acc", AudioType.ACC},
+            {".aiff", AudioType.AIFF},
+            {".it", AudioType.IT},
+            {".mod", AudioType.MOD},
+            {".mpeg", AudioType.MPEG},
+            {".m4a", AudioType.MPEG},
+            {".mp3", AudioType.MPEG},
+            {".mp2", AudioType.MPEG},
+            {".ogg", AudioType.OGGVORBIS},
+            {".s3m", AudioType.S3M},
+            {".wav", AudioType.WAV},
+            {".xm", AudioType.XM},
+            {".xma", AudioType.XMA},
+            {".vag", AudioType.VAG},
+            {".audioqueue", AudioType.AUDIOQUEUE}
+        };
 
         private bool isViewDebugLog = true;
 
@@ -74,8 +98,10 @@ namespace MusicPlayer.Scenes.Play
                 .Subscribe(_ =>
                 {
                     RequestUserPermission();
+                    nowloadingImage.gameObject.SetActive(true);
                     musicItems = MusicHelper.Instance.GetMusicItems();
-                    Debug.Log($"playList:{musicItems.Count}");
+                    nowloadingImage.gameObject.SetActive(false);
+                    Debug.Log($"musicItems:{musicItems.Count}");
                 })
                 .AddTo(this);
 
@@ -95,13 +121,21 @@ namespace MusicPlayer.Scenes.Play
             playButton.OnClickAsObservable()
                 .Subscribe(_ =>
                 {
-                    PlayClip(playListIndex);
+                    if (audioSource != default && audioSource.isPlaying)
+                    {
+                        PauseClip();
+                    }
+                    else if (isFirstPlay)
+                    {
+                        PlayClipAsync().Forget();
+                    }
                 })
                 .AddTo(this);
 
             nextButton.OnClickAsObservable()
                 .Subscribe(_ =>
                 {
+                    NextPlaryClipAsync().Forget();
                 })
                 .AddTo(this);
 
@@ -121,48 +155,45 @@ namespace MusicPlayer.Scenes.Play
                 .AddTo(this);
         }
 
-        private async UniTask LoadAsync(MusicItem musicItem)
+        private async UniTask<AudioClip> LoadAsync(MusicItem musicItem)
         {
-            if (!File.Exists(musicItem.path))
+            if (!File.Exists(musicItem.Path))
             {
                 Debug.LogError("not exist");
-                return;
+                return null;
             }
 
-            var loadedClip = await LoadAudioClipAsync(musicItem.path);
+            var loadedClip = await LoadAudioClipAsync(musicItem.Path);
 
             if (loadedClip == null)
             {
                 Debug.LogError("load failure.");
-                return;
+                return null;
             }
 
-            AddPlayList(loadedClip, musicItem);
+            return loadedClip;
         }
 
         private async UniTask<AudioClip> LoadAudioClipAsync(string path)
         {
-            string[] files = Directory.GetFiles(path);
             AudioClip audioClip = null;
+            var extension = Path.GetExtension(path);
+            Debug.Log("extension : " + extension);
+            var audioType = audioTypeDictionary[extension];
 
-            foreach (string file in files)
+            var www = UnityWebRequestMultimedia.GetAudioClip("file://" + path, audioType);
+            await www.SendWebRequest();
+
+            if (www.result == UnityWebRequest.Result.ConnectionError)
             {
-                var extension = Path.GetExtension(file);
-                var audioType = GetAudioType(extension);
-
-                var www = UnityWebRequestMultimedia.GetAudioClip(file, audioType);
-                await www.SendWebRequest();
-
-                if (www.result == UnityWebRequest.Result.ConnectionError)
-                {
-                    Debug.Log(www.error);
-                }
-                else
-                {
-                    Debug.Log("Load success : " + www);
-                    audioClip = DownloadHandlerAudioClip.GetContent(www);
-                }
+                Debug.Log(www.error);
             }
+            else
+            {
+                Debug.Log("Load success : " + www);
+                audioClip = DownloadHandlerAudioClip.GetContent(www);
+            }
+
 
             return audioClip;
         }
@@ -176,18 +207,102 @@ namespace MusicPlayer.Scenes.Play
             };
 
             playList.Add(playItem);
+            Debug.Log($"AddPlayList:{playList.Count}");
+        }
+
+        private async UniTask PlayClipAsync()
+        {
+            Debug.Log("PlayClipAsync");
+            playListIndex = 0;
+            var musicItem = musicItems[playListIndex];
+
+            var currentAudioClip = await LoadAsync(musicItem);
+            AddPlayList(currentAudioClip, musicItem);
+
+            var nextIndex = playListIndex + 1;
+            if (musicItems.Count >= nextIndex)
+            {
+                var nextAudioClip = await LoadAsync(musicItems[nextIndex]);
+                AddPlayList(nextAudioClip, musicItems[nextIndex]);
+            }
+
+            playButtonText.text = "Pause";
+            isFirstPlay = false;
+            PlayClip(playListIndex);
         }
 
         private void PlayClip(int index)
         {
-            if (playList[index].AudioClip == null || audioSource == null) return;
-            if (audioSource.isPlaying || audioSource.clip == playList[index].AudioClip) return;
+            Debug.Log("PlayClip");
+            if (index > playList.Count - 1) return;
 
-            audioSource.clip = playList[index].AudioClip;
-            musicTitleText.text = playList[index].MusicItem.title;
-            musicArtistText.text = playList[index].MusicItem.artist;
+            Debug.Log("index > playList.Count - 1");
+            var playItem = playList[index];
+            if (playItem.AudioClip == null || audioSource == null) return;
+            if (audioSource.clip == playItem.AudioClip) return;
+
+            audioSource.clip = playItem.AudioClip;
+            musicTitleText.text = playItem.MusicItem.Title;
+            musicArtistText.text = playItem.MusicItem.Artist;
 
             audioSource.Play();
+            Debug.Log($"PlayTitle:{playItem.MusicItem.Title}");
+
+            StartCoroutine(Checking(() => {
+                NextPlaryClipAsync().Forget();
+            }));
+        }
+
+        private IEnumerator Checking(Action callback)
+        {
+            while (true)
+            {
+                yield return new WaitForFixedUpdate();
+                if (!audioSource.isPlaying)
+                {
+                    callback();
+                    break;
+                }
+            }
+        }
+
+        private async UniTask NextPlaryClipAsync()
+        {
+            Debug.Log("NextPlaryClipAsync");
+            if (playListIndex + 1 > musicItems.Count - 1) return;
+            Debug.Log("playListIndex + 1 > musicItems.Count - 1");
+            playListIndex = playListIndex + 1;
+            var musicItem = musicItems[playListIndex];
+
+            var playItem = playList.FirstOrDefault(p => p.MusicItem.Id == musicItem.Id);
+            if (playItem == null)
+            {
+                var currentAudioClip = await LoadAsync(musicItems[playListIndex]);
+                AddPlayList(currentAudioClip, musicItems[playListIndex]);
+            }
+
+            var nextIndex = playListIndex + 1;
+            if (nextIndex > musicItems.Count - 1)
+            {
+                var nextAudioClip = await LoadAsync(musicItems[nextIndex]);
+                AddPlayList(nextAudioClip, musicItems[nextIndex]);
+            }
+
+            PlayClip(playListIndex);
+        }
+
+        private void PauseClip()
+        {
+            Debug.Log("PauseClip");
+            if (audioSource == null)
+            {
+                return;
+            }
+
+            if (audioSource.isPlaying)
+            {
+                audioSource.Pause();
+            }
         }
 
         private void StopClip()
@@ -200,41 +315,6 @@ namespace MusicPlayer.Scenes.Play
             if (audioSource.isPlaying)
             {
                 audioSource.Stop();
-            }
-        }
-
-        private AudioType GetAudioType(string extension)
-        {
-            switch (extension)
-            {
-                case "acc":
-                    return AudioType.ACC;
-                case "aiff":
-                    return AudioType.AIFF;
-                case "it":
-                    return AudioType.IT;
-                case "mod":
-                    return AudioType.MOD;
-                case "mpeg":
-                case "mp3":
-                case "mp2":
-                    return AudioType.MPEG;
-                case "ogg":
-                    return AudioType.OGGVORBIS;
-                case "s3m":
-                    return AudioType.S3M;
-                case "wav":
-                    return AudioType.WAV;
-                case "xm":
-                    return AudioType.XM;
-                case "xma":
-                    return AudioType.XMA;
-                case "vag":
-                    return AudioType.VAG;
-                case "audioqueue":
-                    return AudioType.AUDIOQUEUE;
-                default:
-                    return AudioType.UNKNOWN;
             }
         }
     }

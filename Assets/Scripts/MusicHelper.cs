@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -13,23 +14,9 @@ namespace MusicPlayer
         public List<MusicItem> GetMusicItems()
         {
             var json = AndroidPlugin.Instance.GetMusicItemList();
-            var items = JsonHelper.FromJson<MusicItem>(json);
+            var items = JsonConvert.DeserializeObject<MusicItem[]>(json);
 
             return items.ToList();
         }
-    }
-
-    public class MusicItem
-    {
-        public long id;
-        public long albumId;
-        public long artistId;
-        public string path;
-        public string title;
-        public string album;
-        public string artist;
-        public string uri;
-        public long duration;
-        public int trackNo;
     }
 }

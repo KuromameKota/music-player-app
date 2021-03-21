@@ -21,7 +21,6 @@ namespace MusicPlayer
                 var activity = unityPlayer.GetStatic<AndroidJavaObject>("currentActivity");
                 var context = activity.Call<AndroidJavaObject>("getApplicationContext");
                 var json = androidSystem.CallStatic<string>("getMusicItems", context);
-                Debug.Log(json);
 
                 return json;
             }
